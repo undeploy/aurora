@@ -1,6 +1,6 @@
 #ifndef AURORA_H
 #define AURORA_H
-#include "Arduino.h"
+#include <Arduino.h>
 
 class Aurora {
 public:
@@ -56,5 +56,3 @@ private:
 };
 
 #endif //AURORA_H
-
-
