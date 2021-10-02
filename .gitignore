@@ -33,3 +33,11 @@
 
 # IDE
 .vscode
+*.code-workspace
+.DS_Store
+
+#Packages
+*.tar
+*.gz
+*tar.gz
+*.zip

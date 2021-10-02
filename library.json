@@ -1,8 +1,13 @@
 {
     "name": "Aurora",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Aurora is a non blocking library that can control led strips. It allows to change color, fade from one color to another, and create a sequence of color changing or fading that will execute repeatedly.",
     "keywords": "aurora, led, led-strip",
+    "authors":
+{
+    "name": "Undeploy",
+    "maintainer": true
+},
     "repository":
     {
       "type": "git",
