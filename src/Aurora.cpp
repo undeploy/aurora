@@ -75,7 +75,7 @@ void Aurora::addColorCommand(int red, int green, int blue, int steps, long durat
     }
 
     // Maximum number of steps calculation
-    uint16_t maxSteps = max(abs(redDifference), max(abs(greenDifference), abs(blueDifference)));
+    int maxSteps = max(abs(redDifference), max(abs(greenDifference), abs(blueDifference)));
 
     // Step argument cannot be greater than maximum steps
     steps = clamp(steps, 0, maxSteps);
@@ -126,7 +126,7 @@ void Aurora::fadeOut(int red, int green, int blue, int steps, long duration) {
 
 //Assures that value is between lower and upper.
 int Aurora::clamp(int value, int lower, int upper){
-    return (unsigned int) max(lower, min(value, upper));
+    return max(lower, min(value, upper));
 }
 
 // Executes the color command chain.
