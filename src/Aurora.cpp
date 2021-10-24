@@ -1,20 +1,20 @@
 #include "Aurora.h"
 #include "Arduino.h"
 
-Aurora::Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, int writeRange) {
+Aurora::Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t writeRange) {
     this->redPin = redPin;
     this->greenPin = greenPin;
     this->bluePin = bluePin;
     this->writeRange = clamp(writeRange, 1, INT32_MAX);
-    analogWriteRange(static_cast<uint32_t>(this->writeRange));
+    analogWriteRange(this->writeRange);
+    this->reset();
 }
 
 //Change the color.
-void Aurora::setColor(int red, int green, int blue){
+void Aurora::setColor(uint16_t red, uint16_t green, uint16_t blue){
     this->red = clamp(red, 0 , this->writeRange);
     this->green = clamp(green, 0 , this->writeRange);
     this->blue = clamp(blue, 0 , this->writeRange);
-    Serial.print("R,G,B=");Serial.print(red);Serial.print(",");Serial.print(green);Serial.print(",");Serial.println(blue);
 
     analogWrite(this->redPin, this->red);
     analogWrite(this->greenPin, this->green);
@@ -24,34 +24,51 @@ void Aurora::setColor(int red, int green, int blue){
 //Clear the color commands list and change the color. This color will not change until another function is executed.
 //This method doesnt add a command to list.
 //Doesnt need to call execute() method to do any change.
-void Aurora::changeTo(int red, int green, int blue){
-    commands.clear();
-    setColor(red,green,blue);
+void Aurora::changeColor(uint16_t red, uint16_t green, uint16_t blue){
+    this->clear();
+    this->addTransition(red, green, blue,1,0);
 }
 
 //Adds a command that will do a color change and keeps that color by duration time.
 //After this, the next command will be executed.
 //Need to call execute() method to do any change.
-void Aurora::changeTo(int red, int green, int blue, long duration){
-    addColorCommand(red,green,blue,1,duration);
+void Aurora::changeColor(uint16_t red, uint16_t green, uint16_t blue, uint64_t delay){
+    this->clear();
+    this->addTransition(red, green, blue,1,0);
+    this->addTransition(red,green,blue,1,delay);
 }
 
 //Fades to color given a duration, using the writeRange as the number of steps.
 //Need to call execute() method to do any change.
-void Aurora::fadeTo(int red, int green, int blue, long duration){
+void Aurora::fade(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration){
     // Setting max possible value of step, so it will be clamped next method, to a valid number.
-    this->fadeTo(red, green, blue, this->writeRange, duration);
+    this->fade(red, green, blue, this->writeRange, duration);
 }
 
 //Fades to color in n steps, given a duration.
 //Need to call execute() method to do any change.
-void Aurora::fadeTo(int red, int green, int blue, int steps, long duration){
-    addColorCommand(red, green, blue, steps, duration);
+void Aurora::fade(uint16_t red, uint16_t green, uint16_t blue, uint32_t steps, uint64_t duration){
+    uint16_t fromRed, fromGreen, fromBlue;
+    
+    if(!commands.empty()){
+        TransitionCommand command = commands.back();
+        fromRed = command.red;
+        fromGreen = command.green;
+        fromBlue = command.blue;
+    } else {
+        fromRed = this->red;
+        fromGreen = this->green;
+        fromBlue = this->blue;
+    }
+    this->clear();
+    this->addTransition(red, green, blue, steps, duration);
+    this->addTransition(fromRed, fromGreen, fromBlue, steps, duration);
+    this->addTransition(red, green, blue, steps, duration);
 }
 
 //Adds a Color command to queue with all necessary data to do a color change or fade. That command will be
 // executed in the method execute().
-void Aurora::addColorCommand(int red, int green, int blue, int steps, long duration){
+void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t steps, uint64_t duration){
 
     // Colors cannot have values greater than writeRange and lower than 0
     red = this->clamp(red, 0, this->writeRange);
@@ -91,41 +108,58 @@ void Aurora::addColorCommand(int red, int green, int blue, int steps, long durat
     double blueCoefficient = blueDifference / (double)steps;
 
     // Logs
-    Serial.print(" redCoefficient=");Serial.print(redCoefficient);
-    Serial.print(", greenCoefficient=");Serial.print(greenCoefficient);
-    Serial.print(", blueCoefficient=");Serial.println(blueCoefficient);
+    // Serial.print(" redCoefficient=");Serial.print(redCoefficient);
+    // Serial.print(", greenCoefficient=");Serial.print(greenCoefficient);
+    // Serial.print(", blueCoefficient=");Serial.println(blueCoefficient);
 
-    commands.emplace_back(ColorChangeCommand(red, green, blue, redCoefficient, greenCoefficient, blueCoefficient, steps, duration));
+    commands.emplace_back(TransitionCommand(red, green, blue, redCoefficient, greenCoefficient, blueCoefficient, steps, duration));
+}
+
+void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue){
+    this->addTransition(red, green, blue, 1, 0);
+}
+void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration){
+    this->addTransition(red, green, blue, 1, duration);
+}
+void Aurora::addTransition(Transition transition){
+    this->addTransition(transition.red, transition.green, transition.blue, transition.steps, transition.duration);
 }
 
 //Fades from black(leds off) to argument color, given a duration and using writeRange as number of steps.
 //Need to call execute() method to do any change.
-void Aurora::fadeIn(int red, int green, int blue, long duration) {
+void Aurora::fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration) {
     fadeIn(red, green, blue, writeRange, duration);
 }
 
 //Fades from black(leds off) to argument color in n steps, given a duration.
 //Need to call execute() method to do any change.
-void Aurora::fadeIn(int red, int green, int blue, int steps, long duration) {
-    commands.emplace_back(ColorChangeCommand(0,0,0));
-    this->fadeTo(red,green,blue, steps, duration);
+void Aurora::fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint32_t steps, uint64_t duration) {
+    addTransition(Transition(0,0,0));
+    this->fade(red,green,blue, steps, duration);
 }
 
 //Fades from argument color to black(leds off), given a duration and using writeRange as number of steps.
 //Need to call execute() method to do any change.
-void Aurora::fadeOut(int red, int green, int blue, long duration) {
+void Aurora::fadeOut(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration) {
     fadeOut(red,green,blue,writeRange, duration);
 }
 
 //Fades from argument color to black(leds off) in n steps, given a duration.
 //Need to call execute() method to do any change.
-void Aurora::fadeOut(int red, int green, int blue, int steps, long duration) {
-    commands.emplace_back(ColorChangeCommand(clamp(red, 0, writeRange),clamp(green, 0, writeRange),clamp(blue, 0, writeRange)));
-    this->fadeTo(0,0,0, steps, duration);
+void Aurora::fadeOut(uint16_t red, uint16_t green, uint16_t blue, uint32_t steps, uint64_t duration) {
+    commands.emplace_back(TransitionCommand(clamp(red, 0, writeRange),clamp(green, 0, writeRange),clamp(blue, 0, writeRange)));
+    this->fade(0,0,0, steps, duration);
+}
+
+void Aurora::blink(uint16_t red, uint16_t green, uint16_t blue, uint64_t period){
+    this->clear();
+    this->setColor(red, green, blue);
+    this->addTransition(red, green, blue, 1, period);
+    this->addTransition(0, 0, 0, 1, period);
 }
 
 //Assures that value is between lower and upper.
-int Aurora::clamp(int value, int lower, int upper){
+uint64_t Aurora::clamp(uint64_t value, uint64_t lower, uint64_t upper){
     return max(lower, min(value, upper));
 }
 
@@ -143,11 +177,11 @@ void Aurora::execute() {
         transitionIndex = 1;
     }
 
-    ColorChangeCommand command = commands[commandIndex];
+    TransitionCommand command = commands[commandIndex];
 
     //Check if its the end of command duration
     if (millis() > startTime + command.duration) {
-
+        // Serial.printf("Setting %d,%d,%d for index: %d\n", command.red, command.green, command.blue, commandIndex);
         setColor((uint16_t) command.red,
                  (uint16_t) command.green,
                  (uint16_t) command.blue);
@@ -166,16 +200,16 @@ void Aurora::execute() {
         return;
     }
 
-    //If its to change to one color, no fade
-    if(command.steps == 1){
-        setColor((uint16_t) command.red,
-                 (uint16_t) command.green,
-                 (uint16_t) command.blue);
-    }
+    // //If its to change to one color, no fade
+    // if(command.steps == 1){
+    //     setColor((uint16_t) command.red,
+    //              (uint16_t) command.green,
+    //              (uint16_t) command.blue);
+    // }
 
     //If its to fade
     //Check if its time to do a color transition
-    if (millis() > startTime + (command.duration / command.steps * transitionIndex) && transitionIndex < command.steps) {
+    if (millis() > (startTime + (command.duration / command.steps * transitionIndex)) && transitionIndex < command.steps) {
         setColor((uint16_t) (ceil(command.red - ((command.steps - transitionIndex) * command.redCoefficient))),
                  (uint16_t) (ceil(command.green - ((command.steps - transitionIndex) * command.greenCoefficient))),
                  (uint16_t) (ceil(command.blue - ((command.steps - transitionIndex) * command.blueCoefficient))));
@@ -185,10 +219,20 @@ void Aurora::execute() {
 
 //Returns information about the actual color, color commands and indexes.
 void Aurora::info() {
+    for(unsigned int i =0; i < commands.size(); i++){
+        Serial.printf("index: %d - %d, %d, %d - %d, %lld\n", i, commands[i].red, commands[i].green, commands[i].blue, commands[i].steps, commands[i].duration);
+    }
+}
 
+//Removes all commands from the list.
+void Aurora::clear(){
+    commands.clear();
+    startTime = 0;
+    transitionIndex = 1;
+    commandIndex = 0;
 }
 
 //Removes all commands from the list.
 void Aurora::reset(){
-    commands.clear();
+    this->changeColor(defaultRed, defaultGreen, defaultBlue);
 }
