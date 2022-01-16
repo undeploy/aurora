@@ -13,8 +13,8 @@ public:
     void addFade(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration);
     void addFade(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration);
 
-    void fade(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration);
-    void fade(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration);
+    void fade(uint16_t fromRed, uint16_t fromGreen, uint16_t fromBlue, uint16_t toRed, uint16_t toGreen, uint16_t toBlue, uint32_t gradient, uint64_t duration);
+    void fade(uint16_t fromRed, uint16_t fromGreen, uint16_t fromBlue, uint16_t toRed, uint16_t toGreen, uint16_t toBlue, uint64_t duration);
     
     void fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration);
     void fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration);
@@ -44,7 +44,7 @@ private:
         uint16_t jumpFor = 0;
         uint16_t jumpCounter = 0;
 
-        TransitionCommand(uint16_t red, uint16_t green, uint16_t blue, double redCoefficient, double greenCoefficient, double blueCoefficient, uint16_t gradient, uint64_t duration) {
+        TransitionCommand(uint16_t red, uint16_t green, uint16_t blue, double redCoefficient, double greenCoefficient, double blueCoefficient, uint16_t gradient, uint64_t duration, uint64_t pause) {
             this->red = red;
             this->green = green;
             this->blue = blue;
@@ -53,10 +53,9 @@ private:
             this->blueCoefficient = blueCoefficient;
             this->gradient = gradient;
             this->duration = duration;
+            this->pause = pause;
         }
-        TransitionCommand(uint16_t red, uint16_t green, uint16_t blue) {
-            TransitionCommand(red, green, blue, 0, 0, 0, 1, 0);
-        }
+
         TransitionCommand()=default;
     };
     uint16_t defaultRed = 50;
@@ -71,7 +70,9 @@ private:
     uint16_t commandIndex = 0;
     uint64_t startTime = 0;
 
+    void addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration, uint64_t pause);
     void addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration);
+    void addTransition(uint16_t red, uint16_t green, uint16_t blue);
     void setColor(uint16_t red, uint16_t green, uint16_t blue);
     uint64_t clamp(uint64_t value, uint64_t lower, uint64_t upper);
     void clear();

@@ -2,7 +2,7 @@
 #include "Arduino.h"
 
 /*
- * Contructor to set GPIOs, write range and start the commands queue;
+ * Contructor to set GPIOs, write range and start the transitions queue;
  */
 
 Aurora::Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t writeRange) {
@@ -15,7 +15,7 @@ Aurora::Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t write
 }
 
 /* 
- * Sends the data to GPIOs to set the color of LEDs to a RGB value.
+ * Sends data to GPIOs to set the color of LEDs to the RGB argument.
  */
 void Aurora::setColor(uint16_t red, uint16_t green, uint16_t blue){
     this->red = clamp(red, 0 , this->writeRange);
@@ -37,94 +37,71 @@ uint64_t Aurora::clamp(uint64_t value, uint64_t lower, uint64_t upper){
 }
 
 /* 
- * Adds a color change to commands queue.
- * If the commands queue is empty, the selected color will be displayed statically 
+ * Adds a color change to transitions queue.
+ * If the transitions queue is empty, the selected color will be displayed statically 
  * and no other transition will happen. 
- * In case of the queue has another commands, the selected color will be displayed after the
- * the last command is executed, if a pause is not added after this command, the transition
- * might not be noticed. 
- */ 
-void Aurora::addColor(uint16_t red, uint16_t green, uint16_t blue){
-    this->addTransition(red, green, blue,1,0);
-}
-
-/* 
- * Adds a color change to commands queue.
- * If the commands queue is empty, the selected color will be displayed statically 
- * and no other transition will happen. 
- * In case of the queue has another commands, the selected color will be displayed after the
- * the last command is executed, and will last for pause time in milliseconds, after that the next
- * command will be exeuted.
+ * In case of the queue has another transitions, the selected color will be displayed after the
+ * the last transition is executed, and will last for pause time in milliseconds. After that, the next
+ * transition will be exeuted.
  */ 
 void Aurora::addColor(uint16_t red, uint16_t green, uint16_t blue, uint64 pause){
-    this->addTransition(red, green, blue,1,pause);
+    this->addTransition(red, green, blue, 1, 0, pause);
 }
 
 /* 
- * Clear all transitions and adds a color change to commands queue.
- * As this method clear the commands queue, it will stop any color transition.
- * The selected color will be static, until other commands are added.
+ * Clear all transitions and adds a color change to transitions queue.
+ * As this method clear the transitions queue, it will stop any color transition.
+ * The selected color will be static, until other transitions are added.
+ * As this method doesn't add a pause time, if another transition is added, 
+ * this color may not be displayed, to solve that, you can call the pause method before
+ * adding another transition.
  */ 
 void Aurora::changeColor(uint16_t red, uint16_t green, uint16_t blue){
     this->clear();
-    this->addColor(red, green, blue);
+    this->addColor(red, green, blue, 0);
 }
 
 /* 
- * Fades gradually from the last command color to the selected one, based on the gradient and duration.
- * This method adds a command to change the color to the last command RGB color,
- * then it adds a fade to RGB passed as arguments to commands queue.
- * In case the command queue is empty, the initial color of fade will be the displaying color.
+ * Fades gradually from a RGB color to another, based on duration and using the maximum gradient.
+ * This method clear all transitions and adds two transitions, one for each color.
+ * As this method clear the transitions queue, it will stop the previous transitions
+ * and will only fade between the arguments colors, until other transitions are added.
  */ 
-void Aurora::fade(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration){
-    this->fade(red, green, blue, this->writeRange, duration);
+void Aurora::fade(uint16_t fromRed, uint16_t fromGreen, uint16_t fromBlue, uint16_t toRed, uint16_t toGreen, uint16_t toBlue, uint64_t duration) {
+    this->fade(fromRed, fromGreen, fromBlue, toRed, toGreen, toBlue, this->writeRange, duration);
 }
 
 /* 
- * Fades gradually from the last command color to the selected one, based on the gradient and duration.
- * This method clear all transitions, adds a command to change the color to the last command RGB color,
- * then it adds a fade to RGB passed as arguments to commands queue.
- * In case the command queue is empty, the initial color of fade will be the displaying color.
- * As this method clear the commands queue, it will stop the previous transitions,
- * and will only fade from the previous color to the new one, until other commands are added.
+ * Fades gradually from a RGB color to another, based on the gradient and duration.
+ * This method clear all transitions, adds two transitions, one for each color
+ * As this method clear the transitions queue, it will stop the previous transitions
+ * and will only fade between the arguments colors, until other transitions are added.
  */ 
-void Aurora::fade(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration){
+void Aurora::fade(uint16_t fromRed, uint16_t fromGreen, uint16_t fromBlue, uint16_t toRed, uint16_t toGreen, uint16_t toBlue, uint32_t gradient, uint64_t duration) {
     this->clear();
-    this->addFade(red, green, blue, gradient, duration);
+    this->setColor(fromRed, fromGreen, fromBlue);
+    this->addTransition(toRed, toGreen, toBlue, gradient, duration, 0);
+    this->addTransition(fromRed, fromGreen, fromBlue, gradient, duration, 0);
 }
 
 /* 
- * Adds a command to the queue that fades gradually from the last command color 
+ * Adds a transition to the queue that fades gradually from the last transition color 
  * to the selected one, based on duration and using the maximum gradient.
  */ 
-void Aurora::addFade(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration){
+void Aurora::addFade(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration) {
     this->addFade(red, green, blue, this->writeRange, duration);
 }
 
 /* 
- * Adds a command to the queue that fades gradually from the last command color 
+ * Adds a transitions to the queue that fades gradually from the last transitions color 
  * to the selected one, based on the gradient and duration.
  */ 
 void Aurora::addFade(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration){
-    uint16_t fromRed, fromGreen, fromBlue;
-    
-    if(commands.empty()){
-        this->addColor(this->red, this->green, this->blue);
-    }
-
-    TransitionCommand command = commands.back();
-    fromRed = command.red;
-    fromGreen = command.green;
-    fromBlue = command.blue;
-
-    this->clear();
-    this->addTransition(red, green, blue, gradient, duration);
-    this->addTransition(fromRed, fromGreen, fromBlue, gradient, duration);
-    this->addTransition(red, green, blue, gradient, duration);
+    this->addTransition(red, green, blue, gradient, duration, 0);
 }
 
 /* 
- * Adds a command that fades gradually from black(off)
+ * Adds a transition that fades gradually from black(off)
  * to selected rgb color, based on duration and using the maximum gradient.
  */
 void Aurora::fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration) {
@@ -132,16 +109,17 @@ void Aurora::fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint64_t durati
 }
 
 /* 
- * Adds a command that fades gradually from black(off)
+ * Adds a transition that fades gradually from black(off)
  * to selected rgb color, based on gradient and duration.
  */
 void Aurora::fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration) {
-    changeColor(0,0,0);
-    this->fade(red, green, blue, gradient, duration);
+    this->clear();
+    this->setColor(0, 0, 0);
+    this->addTransition(red, green, blue, gradient, duration, 0);
 }
 
 /* 
- * Adds a command that fades gradually from selected color to black(off),
+ * Adds a transition that fades gradually from selected color to black(off),
  * based on duration and using the maximum gradient.
  */
 void Aurora::fadeOut(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration) {
@@ -149,18 +127,19 @@ void Aurora::fadeOut(uint16_t red, uint16_t green, uint16_t blue, uint64_t durat
 }
 
 /* 
- * Adds a command that fades gradually from selected color to black(off),
+ * Adds a transition that fades gradually from selected color to black(off),
  * based on gradient and duration.
  */
 void Aurora::fadeOut(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration) {
-    changeColor(red, green, blue);
-    this->fade(0, 0, 0, gradient, duration);
+    this->clear();
+    this->setColor(red, green, blue);
+    this->addTransition(0, 0, 0, gradient, duration, 0);
 }
 
 /*
- * Adds a transition command to queue
+ * Adds a transition commands to queue
  */
-void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration){
+void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration, uint64_t pause){
 
     /* Colors cannot have values greater than writeRange and lower than 0 */
     red = this->clamp(red, 0, this->writeRange);
@@ -190,7 +169,7 @@ void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t
      * If the gradient is zero, then it means that there is no difference in previous color and the new one,
      * and because of that, nothing is done.
      */
-    if(clamp(gradient, 0, maxGradient) == 0){
+    if(clamp(gradient, 0, maxGradient) == 0) {
         return;
     }
 
@@ -200,7 +179,7 @@ void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t
     double blueCoefficient = blueDifference / (double)gradient;
 
     /* Adds the new command to vector */
-    commands.emplace_back(TransitionCommand(red, green, blue, redCoefficient, greenCoefficient, blueCoefficient, gradient, duration));
+    commands.emplace_back(TransitionCommand(red, green, blue, redCoefficient, greenCoefficient, blueCoefficient, gradient, duration, pause));
 }
 
 /* 
@@ -235,7 +214,6 @@ void Aurora::jumpTo(uint16_t index, uint16_t times) {
 
 /* Executes the transition command chain. */
 void Aurora::execute() {
-
     /* There is no commands to execute, do nothing. */
     if (commands.empty()) {
         return;
@@ -251,7 +229,6 @@ void Aurora::execute() {
 
     /* Checking if the transition was executed until the end of its duration */
     if (millis() > startTime + command.duration + command.pause) {
-        // Serial.printf("Setting %d,%d,%d for index: %d\n", command.red, command.green, command.blue, commandIndex);
         setColor((uint16_t) command.red,
                  (uint16_t) command.green,
                  (uint16_t) command.blue);
@@ -290,6 +267,7 @@ void Aurora::execute() {
         setColor((uint16_t) (ceil(command.red - ((command.gradient - transitionIndex) * command.redCoefficient))),
                  (uint16_t) (ceil(command.green - ((command.gradient - transitionIndex) * command.greenCoefficient))),
                  (uint16_t) (ceil(command.blue - ((command.gradient - transitionIndex) * command.blueCoefficient))));
+        Serial.printf("%d, %d, %d\n", red, green, blue);
         transitionIndex++;
     }
 }
