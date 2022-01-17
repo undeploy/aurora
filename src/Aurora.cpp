@@ -267,7 +267,6 @@ void Aurora::execute() {
         setColor((uint16_t) (ceil(command.red - ((command.gradient - transitionIndex) * command.redCoefficient))),
                  (uint16_t) (ceil(command.green - ((command.gradient - transitionIndex) * command.greenCoefficient))),
                  (uint16_t) (ceil(command.blue - ((command.gradient - transitionIndex) * command.blueCoefficient))));
-        Serial.printf("%d, %d, %d\n", red, green, blue);
         transitionIndex++;
     }
 }
