@@ -4,7 +4,7 @@
 
 class Aurora {
 public:
-    Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t writeRange);
+    Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t resolution);
     
     void addColor(uint16_t red, uint16_t green, uint16_t blue);
     void addColor(uint16_t red, uint16_t green, uint16_t blue, uint64 pause);
@@ -66,7 +66,7 @@ private:
     uint8_t redPin, greenPin, bluePin;
     uint16_t red, green, blue;
     uint16_t transitionIndex = 0;
-    uint32_t writeRange;
+    uint32_t resolution;
     uint16_t commandIndex = 0;
     uint64_t startTime = 0;
 

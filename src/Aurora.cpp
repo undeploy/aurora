@@ -5,12 +5,12 @@
  * Contructor to set GPIOs, write range and start the transitions queue;
  */
 
-Aurora::Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t writeRange) {
+Aurora::Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t resolution) {
     this->redPin = redPin;
     this->greenPin = greenPin;
     this->bluePin = bluePin;
-    this->writeRange = clamp(writeRange, 1, INT32_MAX);
-    analogWriteRange(this->writeRange);
+    this->resolution = clamp(resolution, 1, INT32_MAX);
+    analogresolution(this->resolution);
     this->reset();
 }
 
@@ -18,9 +18,9 @@ Aurora::Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t write
  * Sends data to GPIOs to set the color of LEDs to the RGB argument.
  */
 void Aurora::setColor(uint16_t red, uint16_t green, uint16_t blue){
-    this->red = clamp(red, 0 , this->writeRange);
-    this->green = clamp(green, 0 , this->writeRange);
-    this->blue = clamp(blue, 0 , this->writeRange);
+    this->red = clamp(red, 0 , this->resolution);
+    this->green = clamp(green, 0 , this->resolution);
+    this->blue = clamp(blue, 0 , this->resolution);
 
     analogWrite(this->redPin, this->red);
     analogWrite(this->greenPin, this->green);
@@ -68,7 +68,7 @@ void Aurora::changeColor(uint16_t red, uint16_t green, uint16_t blue){
  * and will only fade between the arguments colors, until other transitions are added.
  */ 
 void Aurora::fade(uint16_t fromRed, uint16_t fromGreen, uint16_t fromBlue, uint16_t toRed, uint16_t toGreen, uint16_t toBlue, uint64_t duration) {
-    this->fade(fromRed, fromGreen, fromBlue, toRed, toGreen, toBlue, this->writeRange, duration);
+    this->fade(fromRed, fromGreen, fromBlue, toRed, toGreen, toBlue, this->resolution, duration);
 }
 
 /* 
@@ -89,7 +89,7 @@ void Aurora::fade(uint16_t fromRed, uint16_t fromGreen, uint16_t fromBlue, uint1
  * to the selected one, based on duration and using the maximum gradient.
  */ 
 void Aurora::addFade(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration) {
-    this->addFade(red, green, blue, this->writeRange, duration);
+    this->addFade(red, green, blue, this->resolution, duration);
 }
 
 /* 
@@ -105,7 +105,7 @@ void Aurora::addFade(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradi
  * to selected rgb color, based on duration and using the maximum gradient.
  */
 void Aurora::fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration) {
-    fadeIn(red, green, blue, this->writeRange, duration);
+    fadeIn(red, green, blue, this->resolution, duration);
 }
 
 /* 
@@ -123,7 +123,7 @@ void Aurora::fadeIn(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradie
  * based on duration and using the maximum gradient.
  */
 void Aurora::fadeOut(uint16_t red, uint16_t green, uint16_t blue, uint64_t duration) {
-    fadeOut(red, green, blue, this->writeRange, duration);
+    fadeOut(red, green, blue, this->resolution, duration);
 }
 
 /* 
@@ -141,10 +141,10 @@ void Aurora::fadeOut(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradi
  */
 void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration, uint64_t pause){
 
-    /* Colors cannot have values greater than writeRange and lower than 0 */
-    red = this->clamp(red, 0, this->writeRange);
-    green = this->clamp(green, 0, this->writeRange);
-    blue = this->clamp(blue, 0, this->writeRange);
+    /* Colors cannot have values greater than resolution and lower than 0 */
+    red = this->clamp(red, 0, this->resolution);
+    green = this->clamp(green, 0, this->resolution);
+    blue = this->clamp(blue, 0, this->resolution);
 
     /* Difference from previous color to new color */
     int redDifference;
