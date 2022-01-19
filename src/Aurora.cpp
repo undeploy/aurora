@@ -10,7 +10,7 @@ Aurora::Aurora(uint8_t redPin, uint8_t greenPin, uint8_t bluePin, uint32_t resol
     this->greenPin = greenPin;
     this->bluePin = bluePin;
     this->resolution = clamp(resolution, 1, INT32_MAX);
-    analogresolution(this->resolution);
+    analogWriteRange(this->resolution);
     this->reset();
 }
 
@@ -141,7 +141,7 @@ void Aurora::fadeOut(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradi
  */
 void Aurora::addTransition(uint16_t red, uint16_t green, uint16_t blue, uint32_t gradient, uint64_t duration, uint64_t pause){
 
-    /* Colors cannot have values greater than resolution and lower than 0 */
+    /* Colors cannot have values greater than resolution or lower than 0 */
     red = this->clamp(red, 0, this->resolution);
     green = this->clamp(green, 0, this->resolution);
     blue = this->clamp(blue, 0, this->resolution);
